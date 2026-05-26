@@ -128,12 +128,11 @@ mongodb+srv://portfolioStudent:PASSWORD@cluster0.xxxxx.mongodb.net/portfolio
 
 ### 2.1 Activer WSL2 sur Windows
 
-Pour Node.js depuis le site officiel, les étapes sont :
+Ouvrez PowerShell en mode Administrateur en cliquant avec le bouton droit et en sélectionnant « Exécuter en tant qu’administrateur », entrez la commande 
+<<wsl --install>>, puis redémarrez votre ordinateur.
 
-Aller sur https://nodejs.org
-Télécharger la version LTS
-Lancer l'installateur Windows
-Suivre les étapes
+PowerShell
+wsl --install
 ### 2.2 Installer Ubuntu
 
 ```powershell
@@ -184,14 +183,12 @@ sudo apt upgrade -y
 
 ### 3.1 Installer Node.js via nvm
 
-```bash
-# Installer nvm
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-source ~/.bashrc
+Pour Node.js depuis le site officiel, les étapes sont :
 
-# Installer Node.js 20
-nvm install 20
-nvm use 20
+Aller sur https://nodejs.org
+Télécharger la version LTS
+Lancer l'installateur Windows
+Suivre les étapes
 
 # Vérifier
 node -v
