@@ -1,81 +1,175 @@
-# 🚀 Portfolio9 — Déploiement DevOps Fullstack
+# 🐳 Guide Complet — Dockerisation du Projet Portfolio
 
-> Application portfolio fullstack déployée avec Docker, Kubernetes (k3s) et CI/CD GitHub Actions.
+> Enchaînement logique complet : GitHub → MongoDB Atlas → Node.js → Docker → GitHub
 
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)
 
 ---
 
-## 📋 Table des matières
+## 📋 Enchaînement des étapes
 
-- [Stack technique](#-stack-technique)
-- [Architecture](#-architecture)
-- [Prérequis](#-prérequis)
-- [Phase 1 — Docker](#-phase-1--docker)
-- [Phase 2 — Installation k3s](#-phase-2--installation-k3s)
-- [Phase 3 — Déploiement Kubernetes](#-phase-3--déploiement-kubernetes)
-- [Phase 4 — Monitoring](#-phase-4--monitoring-prometheus--grafana)
-- [Phase 5 — CI/CD](#-phase-5--cicd-github-actions)
-- [Accès à l'application](#-accès-à-lapplication)
-
----
-
-## 🛠 Stack technique
-
-| Couche | Technologie |
-|---|---|
-| Frontend | HTML / CSS |
-| Backend | Node.js / Express |
-| Base de données | MongoDB Atlas (Cloud) |
-| Conteneurisation | Docker |
-| Orchestration | Kubernetes k3s |
-| Monitoring | Prometheus + Grafana (Helm) |
-| CI/CD | GitHub Actions |
-| Environnement | WSL2 Ubuntu sur Windows |
+| # | Phase | Description |
+|---|---|---|
+| 1 | GitHub | Créer un compte et un dépôt |
+| 2 | MongoDB Atlas | Créer un cluster et récupérer l'URI |
+| 3 | Node.js | Installer Node.js sur WSL2 |
+| 4 | Backend | Initialiser le projet Express |
+| 5 | .env | Configurer la connexion MongoDB |
+| 6 | Docker | Installer Docker Desktop |
+| 7 | Dockerfile Backend | Conteneuriser le backend |
+| 8 | Dockerfile Frontend | Conteneuriser le frontend |
+| 9 | Docker Compose | Orchestrer les services |
+| 10 | Git & GitHub | Versionner et pousser le code |
 
 ---
 
-## 🏗 Architecture
+## 🐙 Étape 1 — Créer un compte GitHub
+
+1. Aller sur [https://github.com](https://github.com)
+2. Cliquer sur **Sign up**
+3. Remplir : email, mot de passe, nom d'utilisateur
+4. Valider l'email de confirmation
+5. Créer un dépôt : **New repository** → Nom : `protfolio9` → Public → **Create**
+
+### Créer un Personal Access Token
+
+1. Photo de profil → **Settings**
+2. **Developer settings** (tout en bas)
+3. **Personal access tokens** → **Tokens (classic)**
+4. **Generate new token (classic)**
+5. Cocher : `repo` ✅ et `workflow` ✅
+6. **Generate token** → Copier immédiatement ⚠️
+
+> ⚠️ Le token ne s'affiche qu'une seule fois !
+
+---
+
+## 🍃 Étape 2 — Créer un compte MongoDB Atlas
+
+1. Aller sur [https://www.mongodb.com/atlas](https://www.mongodb.com/atlas)
+2. **Try Free** → Créer un compte
+3. Choisir le plan **gratuit (Free/Shared)**
+4. Provider : AWS → Région proche → **Create Cluster**
+
+### Configurer l'accès
+
+1. **Database Access** → Add New Database User
+   - Username : `portfolioStudent`
+   - Password : (noter le mot de passe)
+   - Rôle : **Atlas admin**
+2. **Network Access** → Add IP Address → **Allow Access from Anywhere** (`0.0.0.0/0`)
+
+### Récupérer l'URI
+
+1. **Clusters** → **Connect** → **Connect your application**
+2. Driver : Node.js → Copier l'URI
 
 ```
-┌─────────────────────────────────────────────────┐
-│              Cluster Kubernetes k3s              │
-│                                                  │
-│  ┌─────────────────┐    ┌────────────────────┐   │
-│  │ frontend Pod     │    │  backend Pod        │   │
-│  │ HTML/CSS + Nginx │    │  Node.js/Express    │   │
-│  │ Port: 80         │    │  Port: 5000         │   │
-│  └────────┬─────────┘    └────────┬───────────┘   │
-│           │                       │               │
-│  NodePort:8080            ClusterIP:5002          │
-│                                   │               │
-└───────────────────────────────────│───────────────┘
-                                    │
-                            ┌───────▼────────┐
-                            │  MongoDB Atlas  │
-                            │  (Cloud)        │
-                            └────────────────┘
+mongodb+srv://portfolioStudent:PASSWORD@cluster0.xxxxx.mongodb.net/portfolio
 ```
 
 ---
 
-## ✅ Prérequis
+## 🟢 Étape 3 — Installation de Node.js (WSL2)
 
-- Windows 11 avec **WSL2** activé
-- **Ubuntu** installé dans WSL2
-- **Docker Desktop** avec intégration WSL2 activée
-- Compte **GitHub** avec Personal Access Token
-- Compte **MongoDB Atlas**
+```bash
+# Ouvrir Ubuntu depuis PowerShell
+wsl -d Ubuntu
+
+# Installer nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+
+# Installer Node.js 20
+nvm install 20
+nvm use 20
+
+# Vérifier
+node -v
+npm -v
+```
 
 ---
 
-## 🐳 Phase 1 — Docker
+## 📦 Étape 4 — Initialisation du Backend
 
-### Dockerfile Backend
+```bash
+# Créer le dossier backend
+mkdir backend && cd backend
+
+# Initialiser le projet Node.js
+npm init -y
+
+# Installer les dépendances
+npm install express
+npm install mongoose
+npm install dotenv
+npm install cors
+
+# Vérifier les modules installés
+npm list --depth=0
+cat package.json
+
+# Tester sans Docker
+node server.js
+curl http://localhost:5000
+```
+
+---
+
+## 🔐 Étape 5 — Fichier .env
+
+```bash
+# Créer le fichier .env dans le dossier backend
+touch .env
+nano .env
+```
+
+Contenu du fichier `.env` :
+
+```env
+MONGO_URI=mongodb+srv://portfolioStudent:PASSWORD@cluster0.xxxxx.mongodb.net/portfolio
+PORT=5000
+```
+
+```bash
+# Protéger .env avec .gitignore
+echo '.env' >> .gitignore
+echo 'node_modules/' >> .gitignore
+```
+
+> ⚠️ Ne jamais pousser `.env` sur GitHub !
+
+---
+
+## 🐳 Étape 6 — Installation de Docker
+
+1. Télécharger **Docker Desktop** sur [https://www.docker.com](https://www.docker.com)
+2. Installer et redémarrer Windows si demandé
+3. Docker Desktop → **Settings** → **Resources** → **WSL Integration** → Activer **Ubuntu** ✅ → **Apply & Restart**
+
+```bash
+# Vérifier Docker dans WSL2
+docker -v
+docker ps
+docker images
+
+# Fix permissions si nécessaire
+sudo chmod 666 /var/run/docker.sock
+```
+
+---
+
+## ⚙️ Étape 7 — Dockerfile Backend
+
+```bash
+cd backend
+nano Dockerfile
+```
 
 ```dockerfile
 FROM node:20
@@ -87,7 +181,37 @@ EXPOSE 5001
 CMD ["node", "server.js"]
 ```
 
-### Dockerfile Frontend
+| Instruction | Description |
+|---|---|
+| `FROM node:20` | Image de base Node.js 20 |
+| `WORKDIR /app` | Dossier de travail dans le conteneur |
+| `COPY package*.json ./` | Copie les dépendances (optimisation cache) |
+| `RUN npm install` | Installe les dépendances |
+| `COPY . .` | Copie le code source |
+| `EXPOSE 5001` | Port exposé par le conteneur |
+| `CMD ["node", "server.js"]` | Commande de démarrage |
+
+```bash
+# Builder l'image backend
+docker build -t contact-backend .
+docker build -t protfolio9-backend:latest .
+
+# Lancer le conteneur backend
+docker run -p 5001:5000 --env-file .env contact-backend
+
+# Vérifier
+docker images
+docker ps
+```
+
+---
+
+## 🌐 Étape 8 — Dockerfile Frontend
+
+```bash
+cd frontend
+nano Dockerfile
+```
 
 ```dockerfile
 FROM nginx:alpine
@@ -95,7 +219,22 @@ COPY . /usr/share/nginx/html
 EXPOSE 80
 ```
 
-### docker-compose.yml
+```bash
+# Builder l'image frontend
+docker build -t portfolio-frontend .
+docker build -t protfolio9-frontend:latest .
+
+# Lancer le conteneur frontend
+docker run -p 8080:80 portfolio-frontend
+
+# Accéder sur http://localhost:8080
+```
+
+---
+
+## 🔀 Étape 9 — Docker Compose
+
+Créer `docker-compose.yml` à la racine du projet :
 
 ```yaml
 version: "3.8"
@@ -116,353 +255,77 @@ services:
     restart: always
 ```
 
-### Commandes Docker
-
 ```bash
-# Lister les images disponibles
-docker images
+# Lancer tous les services
+docker compose up --build
 
-# Builder les images
-docker build -t protfolio9-frontend:latest ./frontend
-docker build -t protfolio9-backend:latest ./backend
+# En arrière-plan
+docker compose up -d
 
-# Lancer avec docker-compose
-docker-compose up -d
+# Voir l'état
+docker compose ps
 
-# Vérifier les conteneurs
-docker ps
+# Voir les logs
+docker compose logs
+docker compose logs backend
+
+# Arrêter
+docker compose down
+
+# Redémarrer
+docker compose restart
 ```
 
-### ⚠️ Fix permissions Docker (WSL2)
-
-```bash
-sudo chmod 666 /var/run/docker.sock
-```
+> ✅ Frontend accessible sur **http://localhost:8080**
+> ✅ Backend accessible sur **http://localhost:5002**
 
 ---
 
-## ☸️ Phase 2 — Installation k3s
-
-### Ouvrir WSL2 Ubuntu
+## 📤 Étape 10 — Git & GitHub
 
 ```bash
-# Depuis PowerShell Windows
-wsl -d Ubuntu
-```
-
-### Mettre à jour le système
-
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-### Installer k3s
-
-```bash
-curl -sfL https://get.k3s.io | sh -
-```
-
-### Configurer kubectl
-
-```bash
-mkdir -p ~/.kube
-sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-sudo chown $USER:$USER ~/.kube/config
-echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### Vérifier l'installation
-
-```bash
-sudo systemctl status k3s
-kubectl get nodes
-kubectl get pods -A
-```
-
----
-
-## 📦 Phase 3 — Déploiement Kubernetes
-
-### Créer le dossier k8s
-
-```bash
-mkdir -p k8s && cd k8s
-```
-
-### secret.yaml — MongoDB Atlas
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mongo-secret
-type: Opaque
-stringData:
-  MONGO_URI: "mongodb+srv://..."
-```
-
-### backend-deployment.yaml
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: backend
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: backend
-  template:
-    metadata:
-      labels:
-        app: backend
-    spec:
-      containers:
-      - name: backend
-        image: protfolio9-backend:latest
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 5000
-        env:
-        - name: MONGO_URI
-          valueFrom:
-            secretKeyRef:
-              name: mongo-secret
-              key: MONGO_URI
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend
-spec:
-  selector:
-    app: backend
-  ports:
-  - port: 5002
-    targetPort: 5000
-  type: ClusterIP
-```
-
-### frontend-deployment.yaml
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: frontend
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: frontend
-  template:
-    metadata:
-      labels:
-        app: frontend
-    spec:
-      containers:
-      - name: frontend
-        image: protfolio9-frontend:latest
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: frontend
-spec:
-  selector:
-    app: frontend
-  ports:
-  - port: 8080
-    targetPort: 80
-  type: NodePort
-```
-
-### Importer les images dans k3s
-
-```bash
-# k3s utilise containerd, pas Docker
-# Il faut importer les images explicitement
-docker save protfolio9-frontend:latest | sudo k3s ctr images import -
-docker save protfolio9-backend:latest | sudo k3s ctr images import -
-```
-
-### Déployer et vérifier
-
-```bash
-# Déployer tous les manifestes
-kubectl apply -f .
-
-# Vérifier les pods
-kubectl get pods
-
-# Redémarrer si nécessaire
-kubectl rollout restart deployment backend frontend
-
-# Voir le port d'accès frontend
-kubectl get svc frontend
-```
-
----
-
-## 📊 Phase 4 — Monitoring (Prometheus + Grafana)
-
-### Installer Helm
-
-```bash
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-helm version
-```
-
-### Installer la stack monitoring
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm install monitoring prometheus-community/kube-prometheus-stack \
-  --namespace monitoring \
-  --create-namespace
-```
-
-### Vérifier les pods
-
-```bash
-kubectl --namespace monitoring get pods
-```
-
-### Fix WSL2 — Désactiver node-exporter
-
-```bash
-# Le node-exporter est incompatible avec WSL2
-helm upgrade monitoring prometheus-community/kube-prometheus-stack \
-  --namespace monitoring \
-  --set prometheus-node-exporter.enabled=false
-
-kubectl --namespace monitoring delete daemonset monitoring-prometheus-node-exporter
-```
-
-### Accéder à Grafana
-
-```bash
-# Récupérer le mot de passe admin
-kubectl --namespace monitoring get secrets monitoring-grafana \
-  -o jsonpath="{.data.admin-password}" | base64 -d ; echo
-
-# Port-forward vers Grafana
-kubectl --namespace monitoring port-forward \
-  pod/$(kubectl --namespace monitoring get pod \
-  -l "app.kubernetes.io/name=grafana" \
-  -o jsonpath="{.items[0].metadata.name}") 3000:3000
-```
-
-Ouvrir **http://localhost:3000** → login: `admin`
-
----
-
-## 🔄 Phase 5 — CI/CD GitHub Actions
-
-### Configurer Git
-
-```bash
+# Configurer Git (première fois)
 git config --global user.name "Rtibi Wissal"
 git config --global user.email "ton_email@gmail.com"
-```
 
-### Initialiser et pousser sur GitHub
-
-```bash
+# Initialiser Git
+cd ~/protfolio9
 git init
 git remote add origin https://github.com/wissal5-rtibi/protfolio9.git
+
+# Premier commit
 git add .
+git status
 git commit -m "Initial commit - Portfolio9 fullstack DevOps"
+
+# Pousser sur GitHub
 git push https://wissal5-rtibi:TOKEN@github.com/wissal5-rtibi/protfolio9.git master
+
+# Vérifier
+git log --oneline
 ```
-
-> ⚠️ Utiliser un **Personal Access Token** GitHub avec les scopes `repo` et `workflow`.
-
-### Pipeline .github/workflows/deploy.yml
-
-```yaml
-name: CI/CD Pipeline - Portfolio9
-
-on:
-  push:
-    branches:
-      - master
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Frontend image
-        run: docker build -t protfolio9-frontend:latest ./frontend
-
-      - name: Build Backend image
-        run: docker build -t protfolio9-backend:latest ./backend
-
-      - name: Run Backend tests
-        run: |
-          cd backend
-          npm install
-          npm test --if-present || echo "No tests specified, skipping..."
-
-      - name: Verify Kubernetes manifests
-        run: |
-          cat k8s/backend-deployment.yaml
-          cat k8s/frontend-deployment.yaml
-          echo "✅ Manifests verified!"
-
-      - name: Deployment Success
-        run: |
-          echo "✅ CI/CD Pipeline terminé avec succès!"
-          echo "📦 Images: protfolio9-frontend, protfolio9-backend"
-```
-
-### Déclencher le pipeline
-
-```bash
-# Chaque push sur master déclenche automatiquement le pipeline
-git add .
-git commit -m "Update"
-git push https://wissal5-rtibi:TOKEN@github.com/wissal5-rtibi/protfolio9.git master
-```
-
-Vérifier sur : `https://github.com/wissal5-rtibi/protfolio9/actions`
 
 ---
 
-## 🌐 Accès à l'application
+## 📋 Récapitulatif des commandes
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:8080 |
-| Grafana | http://localhost:3000 |
-| Backend (interne) | ClusterIP:5002 |
-
----
-
-## ✅ Statut du projet
-
-- [x] Frontend HTML/CSS
-- [x] Backend Node.js/Express
-- [x] MongoDB Atlas
-- [x] Docker
-- [x] Kubernetes k3s
-- [x] Monitoring Prometheus + Grafana
-- [x] Git + GitHub
-- [x] CI/CD GitHub Actions
+| Phase | Commande | Rôle |
+|---|---|---|
+| Node.js | `nvm install 20` | Installer Node.js |
+| Node.js | `npm init -y` | Initialiser le projet |
+| Node.js | `npm install express mongoose dotenv cors` | Dépendances |
+| Node.js | `npm list --depth=0` | Vérifier les modules |
+| Node.js | `node server.js` | Tester sans Docker |
+| Docker | `docker -v` | Vérifier Docker |
+| Docker | `docker build -t IMAGE .` | Builder une image |
+| Docker | `docker run -p 8080:80 IMAGE` | Lancer un conteneur |
+| Docker | `docker images` | Lister les images |
+| Docker | `docker ps` | Conteneurs actifs |
+| Compose | `docker compose up --build` | Lancer tous les services |
+| Compose | `docker compose ps` | État des conteneurs |
+| Compose | `docker compose down` | Arrêter les services |
+| Git | `git add . && git commit -m 'msg'` | Commiter |
+| Git | `git push https://USER:TOKEN@github.com/...` | Pousser |
 
 ---
 
