@@ -129,10 +129,11 @@ mongodb+srv://portfolioStudent:PASSWORD@cluster0.xxxxx.mongodb.net/portfolio
 ### 2.1 Activer WSL2 sur Windows
 
 Ouvrez PowerShell en mode Administrateur en cliquant avec le bouton droit et en sélectionnant « Exécuter en tant qu’administrateur », entrez la commande 
-<<wsl --install>>, puis redémarrez votre ordinateur.
+```powershell
+wsl --install 
+```, puis redémarrez votre ordinateur.
 
-PowerShell
-wsl --install
+
 ### 2.2 Installer Ubuntu
 
 ```powershell
