@@ -128,15 +128,12 @@ mongodb+srv://portfolioStudent:PASSWORD@cluster0.xxxxx.mongodb.net/portfolio
 
 ### 2.1 Activer WSL2 sur Windows
 
-```powershell
-# Depuis PowerShell en administrateur
-dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+Pour Node.js depuis le site officiel, les étapes sont :
 
-# Redémarrer Windows, puis :
-wsl --set-default-version 2
-```
-
+Aller sur https://nodejs.org
+Télécharger la version LTS
+Lancer l'installateur Windows
+Suivre les étapes
 ### 2.2 Installer Ubuntu
 
 ```powershell
