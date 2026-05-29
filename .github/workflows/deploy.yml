@@ -8,7 +8,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -17,18 +16,16 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Frontend image
-        run: |
-          docker build -t protfolio9-frontend:latest ./frontend
+        run: docker build -t protfolio9-frontend:latest ./frontend
 
       - name: Build Backend image
-        run: |
-          docker build -t protfolio9-backend:latest ./backend
+        run: docker build -t protfolio9-backend:latest ./backend
 
       - name: Run Backend tests
         run: |
           cd backend
           npm install
-          npm test --if-present || true 
+          npm test --if-present || true
 
       - name: Verify Kubernetes manifests
         run: |
@@ -38,8 +35,21 @@ jobs:
           cat k8s/frontend-deployment.yaml
           echo "All manifests verified!"
 
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/mon-app_protfolio/protfolio9
+            git pull origin master
+            sudo docker compose down
+            sudo docker compose up --build -d
+            echo "✅ Déploiement réussi !"
+
       - name: Deployment Success
         run: |
-          echo "✅ Build et vérification terminés avec succès!"
-          echo "📦 Images construites: protfolio9-frontend, protfolio9-backend"
-          echo "🚀 Manifests Kubernetes validés"
+          echo "✅ Build et déploiement terminés avec succès!"
+          echo "📦 Images: protfolio9-frontend, protfolio9-backend"
+          echo "🚀 Application disponible sur http://${{ secrets.EC2_HOST }}:8080"
