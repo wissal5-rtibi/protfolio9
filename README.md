@@ -41,6 +41,9 @@
 | Monitoring | Prometheus + Grafana (Helm) |
 | CI/CD | GitHub Actions |
 | Environnement | Windows 11 + WSL2 Ubuntu |
+| Infrastructure as Code | Terraform |
+| Configuration as Code | Ansible |
+| Cloud | AWS EC2 |
 
 ---
 
@@ -693,6 +696,157 @@ Vérifier sur : **https://github.com/wissal5-rtibi/protfolio9/actions** ✅
 - [x] CI/CD GitHub Actions fonctionnel
 
 ---
+---
+
+## ☁️ Phase 8 — Déploiement sur AWS EC2
+
+### Pourquoi déployer sur AWS ?
+
+Déployer sur AWS permet de rendre l'application **accessible depuis n'importe où dans le monde**, 24h/24, sans dépendre de ton PC local. C'est la méthode utilisée en entreprise pour mettre une application en production de façon fiable, scalable et sécurisée.
+
+---
+
+### 🏗️ Infrastructure mise en place
+
+| Paramètre | Valeur |
+|-----------|--------|
+| Cloud | Amazon Web Services (AWS) |
+| Service | EC2 (Elastic Compute Cloud) |
+| OS | Ubuntu Server 22.04 LTS |
+| Type d'instance | t2.micro |
+| Elastic IP | 3.225.157.201 |
+| Région | us-east-1 (N. Virginia) |
+
+### Security Group (Ports ouverts)
+
+| Port | Service |
+|------|---------|
+| 22 | SSH |
+| 80 | HTTP |
+| 8080 | Frontend |
+| 5002 | Backend |
+
+---
+
+### ⚙️ Étapes de déploiement
+
+#### 1. Démarrer le Lab AWS Academy
+- Cliquer sur **▶ Start Lab**
+- Attendre le cercle 🟢 vert
+- Ouvrir la console AWS
+
+#### 2. Créer l'instance EC2
+- OS : Ubuntu Server 22.04 LTS
+- Type : t2.micro
+- Key pair : créer `ma-cle-aws.pem`
+- Autoriser SSH + HTTP dans le Security Group
+
+#### 3. Créer une Elastic IP (IP fixe)
+- EC2 → Réseau et sécurité → Adresses IP élastiques
+- Allouer une nouvelle adresse
+- Associer à l'instance EC2
+
+#### 4. Se connecter au serveur
+- EC2 → Instance → Se connecter → **EC2 Instance Connect**
+
+#### 5. Installations sur le serveur
+```bash
+# Mettre à jour le système
+sudo apt update && sudo apt upgrade -y
+
+# Installer Node.js
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Installer Docker et Docker Compose
+sudo apt install -y docker.io docker-compose
+
+# Démarrer Docker
+sudo systemctl start docker && sudo systemctl enable docker
+sudo usermod -aG docker $USER
+
+# Installer AWS CLI
+sudo apt install awscli -y
+```
+
+#### 6. Configurer les credentials AWS CLI
+```bash
+aws configure
+# AWS Access Key ID     : (depuis AWS Details)
+# AWS Secret Access Key : (depuis AWS Details)
+# Default region name  : us-east-1
+# Default output format: json
+
+aws configure set aws_session_token (depuis AWS Details)
+
+# Vérifier
+aws sts get-caller-identity
+```
+
+#### 7. Cloner et lancer le projet
+```bash
+git clone https://github.com/wissal5-rtibi/protfolio9.git
+cd protfolio9
+sudo docker compose up --build -d
+```
+
+---
+
+### 🔑 Secrets GitHub Actions
+
+| Secret | Description |
+|--------|-------------|
+| `EC2_HOST` | IP publique du serveur (3.225.157.201) |
+| `EC2_USER` | Utilisateur SSH (ubuntu) |
+| `EC2_SSH_KEY` | Contenu du fichier .pem |
+| `AWS_ACCESS_KEY_ID` | Depuis AWS Details |
+| `AWS_SECRET_ACCESS_KEY` | Depuis AWS Details |
+| `AWS_SESSION_TOKEN` | Depuis AWS Details |
+
+> ⚠️ Les credentials AWS Academy expirent toutes les 4h → les mettre à jour avant chaque session !
+
+---
+
+### 🤖 Déploiement automatique — Terraform + Ansible + GitHub Actions
+
+#### Pourquoi automatiser ?
+Sans automatisation, chaque mise à jour du code nécessite de se connecter manuellement au serveur, copier les fichiers et redémarrer l'application. Avec Terraform, Ansible et GitHub Actions, **un simple `git push` suffit pour tout déployer automatiquement** — zéro intervention humaine, zéro erreur.
+
+#### Terraform — Infrastructure as Code
+Terraform crée automatiquement toute l'infrastructure AWS avec du code :
+```bash
+terraform init
+terraform plan
+terraform apply
+# → Crée EC2 + Security Group + Elastic IP automatiquement
+```
+
+#### Ansible — Configuration as Code
+Ansible se connecte au serveur et configure tout automatiquement :
+```bash
+ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
+# → Installe Docker + Clone le repo + Lance l'application
+```
+
+#### Pipeline CI/CD complet
+
+---
+
+### 🌐 URLs d'accès AWS
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://3.225.157.201:8080 |
+| Backend | http://3.225.157.201:5002 |
+
+---
+- [x] Instance EC2 créée et configurée
+- [x] Elastic IP associée
+- [x] Docker + Docker Compose installés
+- [x] Application déployée sur AWS
+- [x] Terraform configuré (Infrastructure as Code)
+- [x] Ansible configuré (Configuration as Code)
+- [x] Pipeline CI/CD complet avec déploiement automatique
 
 ## 👩‍💻 Auteure
 
