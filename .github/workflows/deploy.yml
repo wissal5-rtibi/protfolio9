@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - Portfolio9
+       name: CI/CD Pipeline - Portfolio9
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  build-and-deploy:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -35,21 +35,58 @@ jobs:
           cat k8s/frontend-deployment.yaml
           echo "All manifests verified!"
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.0
+  terraform:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/mon-app_protfolio/protfolio9
-            git pull origin master
-            sudo docker compose down
-            sudo docker compose up --build -d
-            echo "✅ Déploiement réussi !"
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        run: |
+          cd terraform
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan
+
+  ansible:
+    runs-on: ubuntu-latest
+    needs: terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Ansible
+        run: sudo apt install -y ansible
+
+      - name: Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ma-cle-aws.pem
+          chmod 600 ~/.ssh/ma-cle-aws.pem
+
+      - name: Run Ansible Playbook
+        run: |
+          cd ansible
+          ansible-playbook -i inventory.ini deploy.yml \
+            --extra-vars "ansible_host=${{ secrets.EC2_HOST }}"
 
       - name: Deployment Success
         run: |
-          echo "✅ Build et déploiement terminés avec succès!"
-          echo "📦 Images: protfolio9-frontend, protfolio9-backend"
-          echo "🚀 Application disponible sur http://${{ secrets.EC2_HOST }}:8080"
+          echo "✅ Déploiement terminé avec succès!"
+          echo "🌐 Frontend: http://${{ secrets.EC2_HOST }}:8080"
+          echo "⚙️ Backend:  http://${{ secrets.EC2_HOST }}:5002"
