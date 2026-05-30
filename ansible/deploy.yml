@@ -31,8 +31,12 @@
         dest: /app
         force: yes
 
+    - name: Arrêter les conteneurs existants
+      shell: |
+        cd /app
+        docker compose down || true
+
     - name: Lancer l'application
       shell: |
         cd /app
-        docker compose down
         docker compose up --build -d
