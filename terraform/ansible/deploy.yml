@@ -1,0 +1,38 @@
+---
+- name: Déploiement Portfolio9
+  hosts: webservers
+  become: yes
+
+  tasks:
+    - name: Mettre à jour le système
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Installer Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Installer Docker Compose
+      apt:
+        name: docker-compose
+        state: present
+
+    - name: Démarrer Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Cloner le repo GitHub
+      git:
+        repo: https://github.com/wissal5-rtibi/protfolio9.git
+        dest: /app
+        force: yes
+
+    - name: Lancer l'application
+      shell: |
+        cd /app
+        docker compose down
+        docker compose up --build -d
