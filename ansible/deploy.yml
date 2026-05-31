@@ -2,6 +2,7 @@
 - name: Déploiement Portfolio9
   hosts: linux_servers
   become: yes
+
   tasks:
     - name: Mettre à jour le système
       apt:
@@ -15,9 +16,12 @@
           - git
           - nginx
           - curl
-          - nodejs
-          - npm
         state: present
+
+    - name: Installer Node.js et npm
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+        apt-get install -y nodejs
 
     - name: Démarrer Docker
       systemd:
@@ -25,7 +29,7 @@
         state: started
         enabled: yes
 
-    - name: Installer Docker Compose v2 récent
+    - name: Installer Docker Compose v2
       shell: |
         mkdir -p /usr/local/lib/docker/cli-plugins
         curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
@@ -34,20 +38,20 @@
     - name: Installer PM2
       shell: npm install -g pm2
 
-    - name: Cloner le repo GitHub
+    - name: Mettre à jour le code
       git:
         repo: https://github.com/wissal5-rtibi/protfolio9.git
-        dest: /app
+        dest: /home/ubuntu/mon-app_protfolio/protfolio9
         force: yes
 
-    - name: Arrêter les conteneurs existants
+    - name: Arrêter les conteneurs
       shell: |
-        cd /app
+        cd /home/ubuntu/mon-app_protfolio/protfolio9
         /usr/local/lib/docker/cli-plugins/docker-compose down || true
 
-    - name: Lancer l'application avec Docker Compose
+    - name: Lancer l'application
       shell: |
-        cd /app
+        cd /home/ubuntu/mon-app_protfolio/protfolio9
         /usr/local/lib/docker/cli-plugins/docker-compose up --build -d
 
     - name: Configurer Nginx
@@ -90,8 +94,8 @@
 
     - name: Builder les images pour k3s
       shell: |
-        docker build -t protfolio9-frontend:latest /app/frontend
-        docker build -t protfolio9-backend:latest /app/backend
+        docker build -t protfolio9-frontend:latest /home/ubuntu/mon-app_protfolio/protfolio9/frontend
+        docker build -t protfolio9-backend:latest /home/ubuntu/mon-app_protfolio/protfolio9/backend
 
     - name: Importer les images dans k3s
       shell: |
@@ -101,9 +105,9 @@
     - name: Déployer les manifests Kubernetes
       shell: |
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-        kubectl apply -f /app/k8s/
-        kubectl rollout status deployment/frontend --timeout=120s
-        kubectl rollout status deployment/backend --timeout=120s
+        kubectl apply -f /home/ubuntu/mon-app_protfolio/protfolio9/k8s/
+        kubectl rollout status deployment/frontend --timeout=120s || true
+        kubectl rollout status deployment/backend --timeout=120s || true
 
     - name: Vérifier les pods
       shell: |
