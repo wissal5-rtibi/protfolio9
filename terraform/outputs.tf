@@ -1,14 +1,24 @@
-output "instance_ip" {
-  description = "IP publique du serveur EC2"
-  value       = aws_eip.portfolio_eip.public_ip
+output "instance_public_ips" {
+  description = "IPs publiques des instances EC2"
+  value       = aws_instance.web[*].public_ip
+}
+
+output "alb_dns_name" {
+  description = "DNS de l'ALB pour accéder à l'application"
+  value       = aws_lb.main.dns_name
+}
+
+output "vpc_id" {
+  description = "ID du VPC créé"
+  value       = aws_vpc.main.id
+}
+
+output "public_subnet_ids" {
+  description = "IDs des subnets publics"
+  value       = aws_subnet.public[*].id
 }
 
 output "frontend_url" {
-  description = "URL du Frontend"
-  value       = "http://${aws_eip.portfolio_eip.public_ip}:8080"
-}
-
-output "backend_url" {
-  description = "URL du Backend"
-  value       = "http://${aws_eip.portfolio_eip.public_ip}:5002"
+  description = "URL de l'application via ALB"
+  value       = "http://${aws_lb.main.dns_name}"
 }
