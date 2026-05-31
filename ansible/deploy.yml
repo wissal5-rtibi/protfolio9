@@ -25,11 +25,12 @@
         state: started
         enabled: yes
 
-    - name: Installer Docker Compose v2
+    - name: Installer Docker Compose v2 récent
       shell: |
         mkdir -p /usr/local/lib/docker/cli-plugins
-        curl -SL https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+        curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
         chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+        docker compose version
 
     - name: Installer PM2
       shell: npm install -g pm2
@@ -43,12 +44,12 @@
     - name: Arrêter les conteneurs existants
       shell: |
         cd /app
-        docker compose down || true
+        /usr/local/lib/docker/cli-plugins/docker-compose down || true
 
     - name: Lancer l'application avec Docker Compose
       shell: |
         cd /app
-        docker compose up --build -d
+        /usr/local/lib/docker/cli-plugins/docker-compose up --build -d
 
     - name: Configurer Nginx
       copy:
