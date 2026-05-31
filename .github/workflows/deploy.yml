@@ -91,20 +91,7 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ma-cle-aws.pem
           chmod 600 ~/.ssh/ma-cle-aws.pem
 
-      - name: Generate dynamic inventory
-        run: |
-          IP1="${{ needs.terraform.outputs.ec2_ip_1 }}"
-          IP2="${{ needs.terraform.outputs.ec2_ip_2 }}"
-          cat > ansible/inventory.ini << INVENTORY
-          [linux_servers]
-          $IP1 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ma-cle-aws.pem
-          $IP2 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ma-cle-aws.pem
-
-          [linux_servers:vars]
-          ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-          INVENTORY
-          echo "=== Inventory généré ==="
-          cat ansible/inventory.ini
+      
 
       - name: Run Ansible Playbook
         run: |
