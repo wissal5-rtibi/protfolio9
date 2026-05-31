@@ -121,7 +121,7 @@ jobs:
           cat ansible/inventory.ini
 
       - name: Wait for EC2 to be ready
-        run: sleep 60
+        run: sleep 120
 
       - name: Run Ansible Playbook
         run: |
