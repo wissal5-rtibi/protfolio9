@@ -2,7 +2,6 @@
 - name: Déploiement Portfolio9
   hosts: linux_servers
   become: yes
-
   tasks:
     - name: Mettre à jour le système
       apt:
@@ -30,7 +29,6 @@
         mkdir -p /usr/local/lib/docker/cli-plugins
         curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
         chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-        docker compose version
 
     - name: Installer PM2
       shell: npm install -g pm2
@@ -77,10 +75,6 @@
         systemctl restart nginx
         systemctl enable nginx
 
-    - name: Deployment Success
-      debug:
-        msg: "✅ Portfolio9 déployé avec succès !"
-
     - name: Installer k3s
       shell: curl -sfL https://get.k3s.io | sh -
       args:
@@ -93,7 +87,12 @@
         chown ubuntu:ubuntu /home/ubuntu/.kube/config
         chmod 600 /home/ubuntu/.kube/config
 
-    - name: Importer les images Docker dans k3s
+    - name: Builder les images pour k3s
+      shell: |
+        docker build -t protfolio9-frontend:latest /app/frontend
+        docker build -t protfolio9-backend:latest /app/backend
+
+    - name: Importer les images dans k3s
       shell: |
         docker save protfolio9-frontend:latest | k3s ctr images import -
         docker save protfolio9-backend:latest | k3s ctr images import -
@@ -102,8 +101,8 @@
       shell: |
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
         kubectl apply -f /app/k8s/
-        kubectl rollout status deployment/frontend
-        kubectl rollout status deployment/backend
+        kubectl rollout status deployment/frontend --timeout=120s
+        kubectl rollout status deployment/backend --timeout=120s
 
     - name: Vérifier les pods
       shell: |
@@ -115,3 +114,7 @@
     - name: Afficher le statut K8s
       debug:
         msg: "{{ k8s_status.stdout }}"
+
+    - name: Deployment Success
+      debug:
+        msg: "✅ Portfolio9 déployé avec succès sur Docker + Kubernetes !"
