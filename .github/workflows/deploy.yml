@@ -68,8 +68,12 @@ jobs:
         id: tf_output
         run: |
           cd terraform
-          echo "ec2_ip_1=$(terraform output -json instance_public_ips | jq -r '.[0]')" >> $GITHUB_OUTPUT
-          echo "ec2_ip_2=$(terraform output -json instance_public_ips | jq -r '.[1]')" >> $GITHUB_OUTPUT
+          EC2_IP_1=$(terraform output -json instance_public_ips | jq -r '.[0]')
+          EC2_IP_2=$(terraform output -json instance_public_ips | jq -r '.[1]')
+          echo "ec2_ip_1=$EC2_IP_1" >> $GITHUB_OUTPUT
+          echo "ec2_ip_2=$EC2_IP_2" >> $GITHUB_OUTPUT
+          echo "IP1: $EC2_IP_1"
+          echo "IP2: $EC2_IP_2"
 
   ansible:
     runs-on: ubuntu-latest
@@ -89,14 +93,18 @@ jobs:
 
       - name: Generate dynamic inventory
         run: |
-          cat > ansible/inventory.ini << EOF
+          IP1="${{ needs.terraform.outputs.ec2_ip_1 }}"
+          IP2="${{ needs.terraform.outputs.ec2_ip_2 }}"
+          cat > ansible/inventory.ini << INVENTORY
           [linux_servers]
-          ${{ needs.terraform.outputs.ec2_ip_1 }} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ma-cle-aws.pem ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
-          ${{ needs.terraform.outputs.ec2_ip_2 }} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ma-cle-aws.pem ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
+          $IP1 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ma-cle-aws.pem
+          $IP2 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ma-cle-aws.pem
 
           [linux_servers:vars]
           ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-          EOF
+          INVENTORY
+          echo "=== Inventory généré ==="
+          cat ansible/inventory.ini
 
       - name: Run Ansible Playbook
         run: |
