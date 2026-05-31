@@ -1,39 +1,38 @@
----
 - name: Déploiement Portfolio9
   hosts: linux_servers
   become: yes
 
   tasks:
+
     - name: Mettre à jour le système
       apt:
         update_cache: yes
-
-    - name: Installer les dépendances
-      apt:
-        name:
-          - docker.io
-          - git
-          - nginx
-          - curl
-          - nodejs
-          - npm
         state: present
 
-    - name: Démarrer Docker
+    - name: Installer dépendances de base
+      apt:
+        name:
+          - git
+          - curl
+          - nginx
+          - docker.io
+        state: present
+
+    - name: Activer Docker
       systemd:
         name: docker
         state: started
         enabled: yes
 
-    - name: Installer Docker Compose v2 récent
+    - name: Installer Docker Compose v2
       shell: |
         mkdir -p /usr/local/lib/docker/cli-plugins
-        curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+        curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 \
+        -o /usr/local/lib/docker/cli-plugins/docker-compose
         chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-        docker compose version
 
-    - name: Installer PM2
-      shell: npm install -g pm2
+    - name: Vérifier Docker Compose
+      shell: docker compose version
 
     - name: Cloner le repo GitHub
       git:
@@ -41,15 +40,15 @@
         dest: /app
         force: yes
 
-    - name: Arrêter les conteneurs existants
+    - name: Stop containers existants
       shell: |
         cd /app
-        /usr/local/lib/docker/cli-plugins/docker-compose down || true
+        docker compose down || true
 
-    - name: Lancer l'application avec Docker Compose
+    - name: Build & run application
       shell: |
         cd /app
-        /usr/local/lib/docker/cli-plugins/docker-compose up --build -d
+        docker compose up --build -d
 
     - name: Configurer Nginx
       copy:
@@ -57,11 +56,13 @@
         content: |
           server {
               listen 80;
+
               location / {
                   proxy_pass http://localhost:8080;
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
               }
+
               location /api {
                   proxy_pass http://localhost:5002;
                   proxy_set_header Host $host;
