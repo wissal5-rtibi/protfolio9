@@ -108,17 +108,7 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ma-cle-aws.pem
           chmod 600 ~/.ssh/ma-cle-aws.pem
 
-      - name: Update inventory with new EC2 IP
-        run: |
-          cat > ansible/inventory.ini << INVENTORY
-          [linux_servers]
-          ${{ needs.terraform.outputs.ec2_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ma-cle-aws.pem
-
-          [linux_servers:vars]
-          ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-          INVENTORY
-          echo "=== Inventory ==="
-          cat ansible/inventory.ini
+      
 
       - name: Wait for EC2 to be ready
         run: sleep 120
