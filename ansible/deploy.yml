@@ -7,33 +7,32 @@
     - name: Mettre à jour le système
       apt:
         update_cache: yes
-        upgrade: yes
 
     - name: Installer les dépendances
       apt:
         name:
           - docker.io
-          - docker-compose
           - git
           - nginx
           - curl
+          - nodejs
+          - npm
         state: present
-
-    - name: Installer Node.js
-      shell: |
-        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-        apt install -y nodejs
-
-    - name: Installer PM2
-      shell: npm install -g pm2
-
-  
 
     - name: Démarrer Docker
       systemd:
         name: docker
         state: started
         enabled: yes
+
+    - name: Installer Docker Compose v2
+      shell: |
+        mkdir -p /usr/local/lib/docker/cli-plugins
+        curl -SL https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+        chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+    - name: Installer PM2
+      shell: npm install -g pm2
 
     - name: Cloner le repo GitHub
       git:
@@ -51,7 +50,7 @@
         cd /app
         docker compose up --build -d
 
-    - name: Configurer Nginx comme reverse proxy
+    - name: Configurer Nginx
       copy:
         dest: /etc/nginx/sites-available/portfolio9
         content: |
@@ -69,18 +68,13 @@
               }
           }
 
-    - name: Activer le site Nginx
+    - name: Activer Nginx
       shell: |
         ln -sf /etc/nginx/sites-available/portfolio9 /etc/nginx/sites-enabled/
         rm -f /etc/nginx/sites-enabled/default
         nginx -t
         systemctl restart nginx
-
-    - name: Démarrer Nginx
-      systemd:
-        name: nginx
-        state: started
-        enabled: yes
+        systemctl enable nginx
 
     - name: Deployment Success
       debug:
