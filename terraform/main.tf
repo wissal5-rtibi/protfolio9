@@ -97,31 +97,31 @@ resource "aws_security_group" "ec2_sg" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    cidr_blocks     = ["0.0.0.0/0"]
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    from_port       = 5002
-    to_port         = 5002
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
+    from_port   = 5002
+    to_port     = 5002
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -145,17 +145,68 @@ resource "aws_instance" "web" {
 
   tags = { Name = "portfolio9-server-${count.index + 1}" }
 
-  user_data = <<-EOF
+  user_data = <<-USERDATA
     #!/bin/bash
-    apt update -y
-    apt install -y docker.io docker-compose git
+    set -e
+    exec > /var/log/user-data.log 2>&1
+
+    # Update system
+    apt-get update -y
+    apt-get upgrade -y
+
+    # Install dependencies
+    apt-get install -y curl git nginx
+
+    # Install Docker
+    apt-get install -y docker.io
     systemctl start docker
     systemctl enable docker
     usermod -aG docker ubuntu
+
+    # Install Docker Compose v2
+    mkdir -p /usr/local/lib/docker/cli-plugins
+    curl -SL https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+    # Install Node.js
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+    apt-get install -y nodejs
+
+    # Install PM2
+    npm install -g pm2
+
+    # Clone app
     git clone https://github.com/wissal5-rtibi/protfolio9.git /app
     cd /app
+
+    # Launch with Docker Compose
     docker compose up --build -d
-  EOF
+
+    # Configure Nginx as reverse proxy
+    cat > /etc/nginx/sites-available/portfolio9 << 'NGINX'
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://localhost:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        location /api {
+            proxy_pass http://localhost:5002;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    NGINX
+
+    ln -sf /etc/nginx/sites-available/portfolio9 /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/default
+    nginx -t
+    systemctl restart nginx
+    systemctl enable nginx
+
+    echo "✅ Installation terminée !"
+  USERDATA
 }
 
 # ─── ALB ───────────────────────────────────────────
@@ -171,7 +222,7 @@ resource "aws_lb" "main" {
 # ─── TARGET GROUP ──────────────────────────────────
 resource "aws_lb_target_group" "frontend" {
   name     = "portfolio9-frontend-tg"
-  port     = 8080
+  port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
 
@@ -179,6 +230,8 @@ resource "aws_lb_target_group" "frontend" {
     path                = "/"
     healthy_threshold   = 2
     unhealthy_threshold = 10
+    interval            = 30
+    timeout             = 10
   }
 }
 
@@ -199,5 +252,5 @@ resource "aws_lb_target_group_attachment" "web" {
   count            = 2
   target_group_arn = aws_lb_target_group.frontend.arn
   target_id        = aws_instance.web[count.index].id
-  port             = 8080
+  port             = 80
 }
