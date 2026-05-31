@@ -66,8 +66,11 @@ jobs:
           terraform import aws_lb.main portfolio9-alb || true
           terraform import aws_lb_target_group.frontend $(aws elbv2 describe-target-groups --names portfolio9-frontend-tg --query 'TargetGroups[0].TargetGroupArn' --output text) || true
 
-      - name: Terraform Plan
-        run: cd terraform && terraform apply -auto-approve
+      - name: Terraform Destroy and Apply
+        run: |
+          cd terraform
+          terraform destroy -auto-approve || true
+          terraform apply -auto-approve
 
       - name: Get Terraform Outputs
         id: tf_output
