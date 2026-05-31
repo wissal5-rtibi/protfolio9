@@ -6,6 +6,7 @@
     - name: Mettre à jour le système
       apt:
         update_cache: yes
+        cache_valid_time: 3600
 
     - name: Installer les dépendances
       apt:
