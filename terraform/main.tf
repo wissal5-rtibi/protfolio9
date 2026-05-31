@@ -11,7 +11,7 @@ provider "aws" {
   region = var.region
 }
 
-# ─── VPC ───────────────────────────────────────────
+# VPC
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -19,82 +19,40 @@ resource "aws_vpc" "main" {
   tags = { Name = "portfolio9-vpc" }
 }
 
-# ─── INTERNET GATEWAY ──────────────────────────────
+# Internet Gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = { Name = "portfolio9-igw" }
 }
 
-# ─── PUBLIC SUBNETS ────────────────────────────────
+# Public Subnet
 resource "aws_subnet" "public" {
-  count                   = 2
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = var.availability_zones[count.index]
+  cidr_block              = var.subnet_cidr
+  availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
-  tags = { Name = "portfolio9-public-subnet-${count.index + 1}" }
+  tags = { Name = "portfolio9-public-subnet" }
 }
 
-# ─── PRIVATE SUBNETS ───────────────────────────────
-resource "aws_subnet" "private" {
-  count             = 2
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_cidrs[count.index]
-  availability_zone = var.availability_zones[count.index]
-  tags = { Name = "portfolio9-private-subnet-${count.index + 1}" }
-}
-
-# ─── ROUTE TABLE PUBLIQUE ──────────────────────────
+# Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main.id
   }
-  tags = { Name = "portfolio9-public-rt" }
+  tags = { Name = "portfolio9-rt" }
 }
 
 resource "aws_route_table_association" "public" {
-  count          = 2
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
 }
 
-# ─── SECURITY GROUP ALB ────────────────────────────
-resource "aws_security_group" "alb_sg" {
-  name        = "portfolio9-alb-sg"
-  description = "Security Group pour ALB"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "portfolio9-alb-sg" }
-}
-
-# ─── SECURITY GROUP EC2 ────────────────────────────
+# Security Group EC2
 resource "aws_security_group" "ec2_sg" {
-  name        = "portfolio9-ec2-sg"
-  description = "Security Group pour EC2"
-  vpc_id      = aws_vpc.main.id
+  name   = "portfolio9-ec2-sg"
+  vpc_id = aws_vpc.main.id
 
   ingress {
     from_port   = 22
@@ -134,108 +92,72 @@ resource "aws_security_group" "ec2_sg" {
   tags = { Name = "portfolio9-ec2-sg" }
 }
 
-# ─── EC2 INSTANCES ─────────────────────────────────
+# Security Group ALB
+resource "aws_security_group" "alb_sg" {
+  name   = "portfolio9-alb-sg"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "portfolio9-alb-sg" }
+}
+
+# EC2 Instance
 resource "aws_instance" "web" {
-  count                  = 2
   ami                    = var.ami_id
   instance_type          = var.instance_type
   key_name               = var.key_name
-  subnet_id              = aws_subnet.public[count.index].id
+  subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
 
-  tags = { Name = "portfolio9-server-${count.index + 1}" }
-
-  user_data = <<-USERDATA
-    #!/bin/bash
-    set -e
-    exec > /var/log/user-data.log 2>&1
-
-    # Update system
-    apt-get update -y
-    apt-get upgrade -y
-
-    # Install dependencies
-    apt-get install -y curl git nginx
-
-    # Install Docker
-    apt-get install -y docker.io
-    systemctl start docker
-    systemctl enable docker
-    usermod -aG docker ubuntu
-
-    # Install Docker Compose v2
-    mkdir -p /usr/local/lib/docker/cli-plugins
-    curl -SL https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-
-    # Install Node.js
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-    apt-get install -y nodejs
-
-    # Install PM2
-    npm install -g pm2
-
-    # Clone app
-    git clone https://github.com/wissal5-rtibi/protfolio9.git /app
-    cd /app
-
-    # Launch with Docker Compose
-    docker compose up --build -d
-
-    # Configure Nginx as reverse proxy
-    cat > /etc/nginx/sites-available/portfolio9 << 'NGINX'
-    server {
-        listen 80;
-        location / {
-            proxy_pass http://localhost:8080;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-        }
-        location /api {
-            proxy_pass http://localhost:5002;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-        }
-    }
-    NGINX
-
-    ln -sf /etc/nginx/sites-available/portfolio9 /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default
-    nginx -t
-    systemctl restart nginx
-    systemctl enable nginx
-
-    echo "✅ Installation terminée !"
-  USERDATA
+  tags = { Name = "portfolio9-server" }
 }
 
-# ─── ALB ───────────────────────────────────────────
+# Elastic IP
+resource "aws_eip" "web" {
+  instance = aws_instance.web.id
+  tags     = { Name = "portfolio9-eip" }
+}
+
+# ALB
 resource "aws_lb" "main" {
   name               = "portfolio9-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = aws_subnet.public[*].id
-  tags = { Name = "portfolio9-alb" }
+  subnets            = [aws_subnet.public.id]
+  tags               = { Name = "portfolio9-alb" }
 }
 
-# ─── TARGET GROUP ──────────────────────────────────
+# Target Group
 resource "aws_lb_target_group" "frontend" {
-  name     = "portfolio9-frontend-tg"
-  port     = 80
+  name     = "portfolio9-tg"
+  port     = 8080
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
 
   health_check {
     path                = "/"
     healthy_threshold   = 2
-    unhealthy_threshold = 10
+    unhealthy_threshold = 5
     interval            = 30
     timeout             = 10
   }
 }
 
-# ─── ALB LISTENER ──────────────────────────────────
+# ALB Listener
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -247,10 +169,9 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# ─── TARGET GROUP ATTACHMENT ───────────────────────
+# Target Group Attachment
 resource "aws_lb_target_group_attachment" "web" {
-  count            = 2
   target_group_arn = aws_lb_target_group.frontend.arn
-  target_id        = aws_instance.web[count.index].id
-  port             = 80
+  target_id        = aws_instance.web.id
+  port             = 8080
 }
