@@ -80,3 +80,38 @@
     - name: Deployment Success
       debug:
         msg: "✅ Portfolio9 déployé avec succès !"
+
+    - name: Installer k3s
+      shell: curl -sfL https://get.k3s.io | sh -
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Configurer kubectl
+      shell: |
+        mkdir -p /home/ubuntu/.kube
+        cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
+        chown ubuntu:ubuntu /home/ubuntu/.kube/config
+        chmod 600 /home/ubuntu/.kube/config
+
+    - name: Importer les images Docker dans k3s
+      shell: |
+        docker save protfolio9-frontend:latest | k3s ctr images import -
+        docker save protfolio9-backend:latest | k3s ctr images import -
+
+    - name: Déployer les manifests Kubernetes
+      shell: |
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        kubectl apply -f /app/k8s/
+        kubectl rollout status deployment/frontend
+        kubectl rollout status deployment/backend
+
+    - name: Vérifier les pods
+      shell: |
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        kubectl get pods
+        kubectl get svc
+      register: k8s_status
+
+    - name: Afficher le statut K8s
+      debug:
+        msg: "{{ k8s_status.stdout }}"
