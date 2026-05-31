@@ -4,40 +4,6 @@
   become: yes
 
   tasks:
-    - name: Mettre à jour le système
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
-
-    - name: Installer les dépendances
-      apt:
-        name:
-          - docker.io
-          - git
-          - nginx
-          - curl
-        state: present
-
-    - name: Installer Node.js et npm
-      shell: |
-        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-        apt-get install -y nodejs
-
-    - name: Démarrer Docker
-      systemd:
-        name: docker
-        state: started
-        enabled: yes
-
-    - name: Installer Docker Compose v2
-      shell: |
-        mkdir -p /usr/local/lib/docker/cli-plugins
-        curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-        chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-
-    - name: Installer PM2
-      shell: npm install -g pm2
-
     - name: Mettre à jour le code
       git:
         repo: https://github.com/wissal5-rtibi/protfolio9.git
@@ -54,72 +20,16 @@
         cd /home/ubuntu/mon-app_protfolio/protfolio9
         /usr/local/lib/docker/cli-plugins/docker-compose up --build -d
 
-    - name: Configurer Nginx
-      copy:
-        dest: /etc/nginx/sites-available/portfolio9
-        content: |
-          server {
-              listen 80;
-              location / {
-                  proxy_pass http://localhost:8080;
-                  proxy_set_header Host $host;
-                  proxy_set_header X-Real-IP $remote_addr;
-              }
-              location /api {
-                  proxy_pass http://localhost:5002;
-                  proxy_set_header Host $host;
-                  proxy_set_header X-Real-IP $remote_addr;
-              }
-          }
-
-    - name: Activer Nginx
+    - name: Vérifier les conteneurs
       shell: |
-        ln -sf /etc/nginx/sites-available/portfolio9 /etc/nginx/sites-enabled/
-        rm -f /etc/nginx/sites-enabled/default
-        nginx -t
-        systemctl restart nginx
-        systemctl enable nginx
+        cd /home/ubuntu/mon-app_protfolio/protfolio9
+        /usr/local/lib/docker/cli-plugins/docker-compose ps
+      register: status
 
-    - name: Installer k3s
-      shell: curl -sfL https://get.k3s.io | sh -
-      args:
-        creates: /usr/local/bin/k3s
-
-    - name: Configurer kubectl
-      shell: |
-        mkdir -p /home/ubuntu/.kube
-        cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
-        chown ubuntu:ubuntu /home/ubuntu/.kube/config
-        chmod 600 /home/ubuntu/.kube/config
-
-    - name: Builder les images pour k3s
-      shell: |
-        docker build -t protfolio9-frontend:latest /home/ubuntu/mon-app_protfolio/protfolio9/frontend
-        docker build -t protfolio9-backend:latest /home/ubuntu/mon-app_protfolio/protfolio9/backend
-
-    - name: Importer les images dans k3s
-      shell: |
-        docker save protfolio9-frontend:latest | k3s ctr images import -
-        docker save protfolio9-backend:latest | k3s ctr images import -
-
-    - name: Déployer les manifests Kubernetes
-      shell: |
-        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-        kubectl apply -f /home/ubuntu/mon-app_protfolio/protfolio9/k8s/
-        kubectl rollout status deployment/frontend --timeout=120s || true
-        kubectl rollout status deployment/backend --timeout=120s || true
-
-    - name: Vérifier les pods
-      shell: |
-        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-        kubectl get pods
-        kubectl get svc
-      register: k8s_status
-
-    - name: Afficher le statut K8s
+    - name: Afficher le statut
       debug:
-        msg: "{{ k8s_status.stdout }}"
+        msg: "{{ status.stdout }}"
 
     - name: Deployment Success
       debug:
-        msg: "✅ Portfolio9 déployé avec succès sur Docker + Kubernetes !"
+        msg: "✅ Portfolio9 déployé avec succès !"
