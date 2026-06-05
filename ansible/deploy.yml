@@ -43,9 +43,9 @@
     - name: Stop containers existants
       shell: |
         cd /app
-        docker stop $(docker ps -q) || true
-        docker rm $(docker ps -aq) || true
-        docker compose down || true
+        docker stop $(docker ps -q) 
+        docker rm $(docker ps -aq) 
+        docker compose down 
 
     - name: Build & run application
       shell: |
