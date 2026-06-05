@@ -43,12 +43,14 @@
     - name: Stop containers existants
       shell: |
         cd /app
+        docker stop $(docker ps -q) || true
+        docker rm $(docker ps -aq) || true
         docker compose down || true
 
     - name: Build & run application
       shell: |
         cd /app
-        docker compose up --build -d
+        docker compose up --build -d 
 
     - name: Configurer Nginx
       copy:
